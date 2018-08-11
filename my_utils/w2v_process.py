@@ -1,40 +1,53 @@
-# coding=utf-8
 
-import sys
-from collections import defaultdict
+# coding: utf-8
 
-sys.path.append("..")
+# In[1]:
 
-from init.config import Config
-from data import *
 
 import os
-import multiprocessing
+import sys
+import time
+import pickle
+BASE = '/home/wb/smp2018'
+sys.path.append(BASE)
+
+
+# In[2]:
+
+
 import gensim
-import re
+import word2vec
+import numpy as np
+import multiprocessing
+from init.config import Config
+from collections import defaultdict
+from joblib import Parallel, delayed
 from gensim.models import Word2Vec
 from gensim.models.word2vec import LineSentence
-from joblib import Parallel, delayed
-import pickle
-import numpy as np
-import word2vec
+from data import *
 
-# overwrite = True
+
+# In[3]:
+
+
 vec_dim = 256
+
+
+# In[4]:
+
+
+cfg = Config()
+
+
+# In[5]:
 
 
 def create_w2vc(overwrite=True):
     if overwrite:
-        if os.path.exists(Config.cache_dir + '/w2v_dataframe.csv'):
-            os.remove(Config.cache_dir + '/w2v_dataframe.csv')
-        if os.path.exists(Config.cache_dir + '/w2v_content_word.txt'):
-            os.remove(Config.cache_dir + '/w2v_content_word.txt')
-            # f = open(Config.cache_dir + '/w2v_content_word.txt', 'w')
-            # f.close()
-        if os.path.exists(Config.cache_dir + '/w2v_content_char.txt'):
-            os.remove(Config.cache_dir + '/w2v_content_char.txt')
-            # f = open(Config.cache_dir + '/w2v_content_char.txt', 'w')
-            # f.close()
+        if os.path.exists(cfg.cache_dir + '/w2v_content_word.txt'):
+            os.remove(cfg.cache_dir + '/w2v_content_word.txt')
+        if os.path.exists(cfg.cache_dir + '/w2v_content_char.txt'):
+            os.remove(cfg.cache_dir + '/w2v_content_char.txt')
 
         train_data = get_train_all_data()
         vali_data = get_validation_data()
@@ -42,24 +55,22 @@ def create_w2vc(overwrite=True):
         train_content = train_data["content"]
         vali_content = vali_data["content"]
 
-        contents = train_content + vali_content
         print("len of train contents", len(train_content))
         print ("len of vali contents", len(vali_content))
-        print("len of contents:", len(contents))
+        print("len of total contents:", len(train_content) + len(vali_content))
 
         def applyParallel(contents, func, n_thread):
             with Parallel(n_jobs=n_thread) as parallel:
                 parallel(delayed(func)(c) for c in contents)
 
         def word_content(content):
-            with open(Config.cache_dir + "/w2v_content_word.txt", "a+") as f:
+            with open(cfg.cache_dir + "/w2v_content_word.txt", "a+") as f:
                 f.writelines(content.lower())
                 f.writelines('\n')
 
         def char_content(content):
-            with open(Config.cache_dir + "/w2v_content_char.txt", "a+") as f:
+            with open(cfg.cache_dir + "/w2v_content_char.txt", "a+") as f:
                 content = content.lower().replace(" ", "")
-                # print(content)
                 f.writelines(" ".join(content))
                 f.writelines("\n")
 
@@ -71,136 +82,53 @@ def create_w2vc(overwrite=True):
 
     # word vector train
     model = gensim.models.Word2Vec(
-        LineSentence(Config.cache_dir + "/w2v_content_word.txt"),
+        LineSentence(cfg.cache_dir + "/w2v_content_word.txt"),
         size=vec_dim,
         window=5,
         min_count=1,
         workers=multiprocessing.cpu_count()
     )
-    model.save(Config.cache_dir + "/content_w2v_word.model")
+    model.save(cfg.cache_dir + "/content_w2v_word.model")
 
     # char vector train
     model = gensim.models.Word2Vec(
-        LineSentence(Config.cache_dir + '/w2v_content_char.txt'),
+        LineSentence(cfg.cache_dir + '/w2v_content_char.txt'),
         size=vec_dim,
         window=5,
         min_count=1,
         workers=multiprocessing.cpu_count()
     )
-    model.save(Config.cache_dir + "/content_w2v_content_char.model")
-
-def convert_num(word):
-    pattern = re.compile('[0-9]+')
-    match = pattern.findall(word)
-    if match:
-        return True
-    else:
-        return False
+    model.save(cfg.cache_dir + "/content_w2v_char.model")
 
 
-def create_word_vocab(overwriter=False):
-    word_freq = defaultdict(int)
+# - len of train contents 146,341
+# - len of vali contents 58,537
+# - len of toal contents: 204,878
 
-    train_data = get_train_all_data()
-    vali_data = get_validation_data()
-    train_content = train_data["content"]
-    vali_content = vali_data["content"]
-
-    for line in train_content:
-        line = line.lower().strip()
-        words = line.split(" ")
-        for word in words:
-            if " " == word or "" == word:
-                continue
-            word_freq[word] += 1
-
-    for line in vali_content:
-        line = line.lower().strip()
-        words = line.split(" ")
-        for word in words:
-            if " " == word or "" == word:
-                continue
-            word_freq[word] += 1
-    vocab = {}
-    i = 1
-    min_freq = 1
-    for word, freq in word_freq.items():
-        if freq >= min_freq:
-            vocab[word] = i
-            i += 1
-    vocab['NUM'] = i
-    vocab['UNK'] = i+1
-    print("size of vocab:", len(vocab))
-
-    if overwriter:
-        vocab_file = Config.cache_dir + '/word_vocab.pk'
-        with open(vocab_file, 'wb') as f:
-            pickle.dump(vocab, f)
-        print("finish to create vocab")
+# In[6]:
 
 
-def create_char_vocab(overwriter=False):
-    char_freq = defaultdict(int)
-
-    train_data = get_train_all_data()
-    vali_data = get_validation_data()
-    train_content = train_data["content"]
-    vali_content = vali_data["content"]
-
-    for line in train_content:
-        line = line.lower().strip()
-        line = line.replace(" ", "")
-        chars_line = " ".join(line)
-        chars = chars_line.split(" ")
-        for char in chars:
-            if " " == char or "" == char:
-                continue
-            char_freq[char] += 1
-
-    for line in vali_content:
-        line = line.lower().strip()
-        line = line.replace(" ", "")
-        chars_line = " ".join(line)
-        chars = chars_line.split(" ")
-        for char in chars:
-            if " " == char or "" == char:
-                continue
-            char_freq[char] += 1
-    vocab = {}
-    i = 1
-    min_freq = 1
-    for char, freq in char_freq.items():
-        if freq >= min_freq:
-            vocab[char] = i
-            i += 1
-    vocab['NUM'] = i
-    vocab['UNK'] = i+1
-    print(vocab)
-    print("size of vocab:", len(vocab))
-
-    if overwriter:
-        vocab_file = Config.cache_dir + '/char_vocab.pk'
-        with open(vocab_file, 'wb') as f:
-            pickle.dump(vocab, f)
-        print("finish to create vocab")
+# create_w2vc(False)
 
 
-def create_word_emb(use_opened=True, overwriter=False):
+# In[7]:
 
-    vocab = pickle.load(open(Config.cache_dir + '/word_vocab.pk', 'rb'))
+
+def create_word_emb(use_opened=False, overwriter=False):
+
+    vocab = pickle.load(open(cfg.word_vocab_path, 'rb'))
     print(len(vocab))
 
     if use_opened:
         word_emb = [np.random.uniform(0, 0, 200) for j in range(len(vocab)+1)]
-        model = word2vec.load(Config.open_w2v_path)
+        model = word2vec.load(cfg.open_w2v_path)
     else:
         word_emb = [np.random.uniform(0, 0, 256) for j in range(len(vocab)+1)]
-        model = gensim.models.Word2Vec.load(Config.cache_dir + "/content_w2v_word.model")
+        model = gensim.models.Word2Vec.load(cfg.cache_dir + "/content_w2v_word.model")
     num = 0
-    # print (len(vocab))
+    
     for word in vocab:
         index = vocab[word]
-        # print(index, word)
         if word in model:
             word_emb[index] = np.array(model[word])
             num += 1
@@ -211,17 +139,28 @@ def create_word_emb(use_opened=True, overwriter=False):
     print("vocab size:", len(vocab))
     print("shape of word_emb", np.shape(word_emb))
     if overwriter:
-        with open(Config.word_embed_path, 'wb') as f:
+        with open(cfg.word_embed_path, 'wb') as f:
             pickle.dump(word_emb, f)
             print("size of embedding_matrix: ", len(word_emb))
             print("word_embedding finish")
 
 
+# - size of word embedding_matrix:  649,130
+
+# In[8]:
+
+
+# create_word_emb(False, True)
+
+
+# In[9]:
+
+
 def create_char_emb(overwriter=False):
 
-    vocab = pickle.load(open(Config.char_vocab_path, 'rb'))
+    vocab = pickle.load(open(cfg.char_vocab_path, 'rb'))
     char_emb = [np.random.uniform(0, 0, 256) for j in range(len(vocab)+1)]
-    model = gensim.models.Word2Vec.load(Config.cache_dir + "/content_w2v_word.model")
+    model = gensim.models.Word2Vec.load(cfg.cache_dir + "/content_w2v_char.model")
     num = 0
     for char in vocab:
         index = vocab[char]
@@ -241,8 +180,139 @@ def create_char_emb(overwriter=False):
             print("char_embedding finish")
 
 
+# - size of char embedding_matrix:  7,862
 
-# create_word_vocab(overwriter=True)
-# create_char_vocab(overwriter=True)
-# create_word_emb(use_opened=True, overwriter=True)
-# create_char_emb(overwriter=True)
+# In[10]:
+
+
+# create_char_emb(True)
+
+
+# In[11]:
+
+
+def create_word_vocab(overwriter=False):
+    word_freq = defaultdict(int)
+
+    train_data = get_train_all_data()
+    vali_data = get_validation_data()
+    train_content = train_data["content"]
+    vali_content = vali_data["content"]
+    
+    t0 = time.time()
+
+    for line in train_content:
+        line = line.lower().strip()
+        words = line.split(" ")
+        for word in words:
+            if " " == word or "" == word:
+                continue
+            word_freq[word] += 1
+    
+    t1 = time.time()
+    print('read train data : %s s' % int(t1-t0))
+
+    for line in vali_content:
+        line = line.lower().strip()
+        words = line.split(" ")
+        for word in words:
+            if " " == word or "" == word:
+                continue
+            word_freq[word] += 1
+    
+    t2 = time.time()
+    print('read vali data : %s s' % int(t2-t0))
+    
+    vocab = {}
+    i = 1
+    min_freq = 1
+    for word, freq in word_freq.items():
+        if freq >= min_freq:
+            vocab[word] = i
+            i += 1
+    vocab['NUM'] = i
+    vocab['UNK'] = i+1
+    print("size of vocab:", len(vocab))
+
+    if overwriter:
+        vocab_file = cfg.cache_dir + '/word_vocab.pk'
+        with open(vocab_file, 'wb') as f:
+            pickle.dump(vocab, f)
+        t3 = time.time()
+        print("finish to create vocab; cost : %s s" % int(t3-t0))
+
+
+# - size of word vocab: 649,129
+
+# In[12]:
+
+
+# create_word_vocab()
+
+
+# In[13]:
+
+
+def create_char_vocab(overwriter=False):
+    char_freq = defaultdict(int)
+
+    train_data = get_train_all_data()
+    vali_data = get_validation_data()
+    train_content = train_data["content"]
+    vali_content = vali_data["content"]
+    
+    t0 = time.time()
+
+    for line in train_content:
+        line = line.lower().strip()
+        line = line.replace(" ", "")
+        chars_line = " ".join(line)
+        chars = chars_line.split(" ")
+        for char in chars:
+            if " " == char or "" == char:
+                continue
+            char_freq[char] += 1
+    
+    t1 = time.time()
+    print('read train data : %s s' % int(t1-t0))
+
+    for line in vali_content:
+        line = line.lower().strip()
+        line = line.replace(" ", "")
+        chars_line = " ".join(line)
+        chars = chars_line.split(" ")
+        for char in chars:
+            if " " == char or "" == char:
+                continue
+            char_freq[char] += 1
+    
+    t2 = time.time()
+    print('read vali data : %s s' % int(t2-t0))
+    
+    vocab = {}
+    i = 1
+    min_freq = 1
+    for char, freq in char_freq.items():
+        if freq >= min_freq:
+            vocab[char] = i
+            i += 1
+    vocab['NUM'] = i
+    vocab['UNK'] = i+1
+    print(vocab)
+    print("size of vocab:", len(vocab))
+
+    if overwriter:
+        vocab_file = Config.cache_dir + '/char_vocab.pk'
+        with open(vocab_file, 'wb') as f:
+            pickle.dump(vocab, f)
+        t3 = time.time()
+        print("finish to create vocab; cost : %s s" % int(t3-t0))
+
+
+# - size of char vocab: 7,861
+
+# In[14]:
+
+
+# create_char_vocab(True)
+
