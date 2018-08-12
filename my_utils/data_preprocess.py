@@ -90,7 +90,7 @@ def get_word_seq(contents, word_maxlen=cfg.word_seq_maxlen, mode="post", keep=Fa
     return word_seq
 
 
-# In[18]:
+# In[8]:
 
 
 def get_char_seq(contents, char_maxlen=cfg.char_seq_maxlen, mode='post', keep=False, verbost=False):
@@ -116,7 +116,7 @@ def get_char_seq(contents, char_maxlen=cfg.char_seq_maxlen, mode='post', keep=Fa
     return char_seq
 
 
-# In[24]:
+# In[9]:
 
 
 def to_categorical(labels):
@@ -130,7 +130,7 @@ def to_categorical(labels):
     return y
 
 
-# In[22]:
+# In[10]:
 
 
 # 得到一个tuple组成的list
@@ -139,7 +139,7 @@ def make_batches(size, batch_size):
     return [(i * batch_size, min(size, (i + 1) * batch_size)) for i in range(0, nb_batch)]
 
 
-# In[25]:
+# In[11]:
 
 
 def batch_generator(contents, labels, batch_size=128, shuffle=True, keep=False, preprocessfunc=None):
@@ -160,7 +160,7 @@ def batch_generator(contents, labels, batch_size=128, shuffle=True, keep=False, 
             yield (batch_contents, batch_labels)
 
 
-# In[26]:
+# In[12]:
 
 
 def word_cnn_preprocess(contents, word_maxlen=cfg.word_seq_maxlen, keep=False):
@@ -168,9 +168,24 @@ def word_cnn_preprocess(contents, word_maxlen=cfg.word_seq_maxlen, keep=False):
     return word_seq
 
 
-# In[27]:
+# In[13]:
 
 
 def word_cnn_train_batch_generator(train_content, train_label, batch_size=128, keep=False):
     return batch_generator(contents=train_content, labels=train_label,batch_size=batch_size, keep=keep, preprocessfunc=word_cnn_preprocess)
+
+
+# In[14]:
+
+
+def char_cnn_train_batch_generator(train_content, train_label, batch_size=128, keep=False):
+    return batch_generator(contents=train_content, labels=train_label, batch_size=batch_size, keep=keep, preprocessfunc=char_cnn_preprocess)
+
+
+# In[15]:
+
+
+def char_cnn_preprocess(contents, maxlen=cfg.char_seq_maxlen, keep=False):
+    char_seq = get_char_seq(contents, char_maxlen=maxlen, keep=keep)
+    return char_seq
 
