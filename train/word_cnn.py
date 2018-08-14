@@ -79,4 +79,4 @@ for i in range(10):
     print("precision", pre)
     print("recall", rec)
     print("f1_score", f1)
-    model.save(Config.cache_dir + '/cnn/%s_epoch_%s_%s_%.5s.h5' % (model_name, i, f1, np.mean(f1)))
+    model.save(Config.cache_dir + '/word_cnn/%s_epoch_%s_%s_%.5s.h5' % (model_name, i, f1, np.mean(f1)))

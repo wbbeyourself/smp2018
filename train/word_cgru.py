@@ -98,7 +98,7 @@ for i in range(15):
 
     if f1_mean > best_f1:
         best_f1 = f1_mean
-        model.save(Config.cache_dir + '/c_gru/%s_epoch_%s_%s_%.7s.h5' % (model_name, i, f1, best_f1))
+        model.save(Config.cache_dir + '/word_cgru/%s_epoch_%s_%s_%.7s.h5' % (model_name, i, f1, best_f1))
 
 t1 = time()
 

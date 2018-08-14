@@ -18,6 +18,7 @@ from data import *
 import numpy as np
 from init.config import Config
 from keras.preprocessing import sequence
+from pyltp import SentenceSplitter
 
 
 # In[3]:
@@ -188,4 +189,30 @@ def char_cnn_train_batch_generator(train_content, train_label, batch_size=128, k
 def char_cnn_preprocess(contents, maxlen=cfg.char_seq_maxlen, keep=False):
     char_seq = get_char_seq(contents, char_maxlen=maxlen, keep=keep)
     return char_seq
+
+
+# In[16]:
+
+
+def word_han_train_batch_generator(train_content, train_label, batch_size=128, keep=False):
+    return batch_generator(contents=train_content, labels=train_label, batch_size=batch_size, keep=keep,
+                           preprocessfunc=word_han_preprocess)
+
+
+# In[17]:
+
+
+def word_char_cnn_train_batch_generator(train_content, train_label, batch_size=128, keep=False):
+    return batch_generator(contents=train_content, labels=train_label, batch_size=batch_size, keep=keep,
+                           preprocessfunc=word_char_cnn_preprocess)
+
+
+# In[18]:
+
+
+def word_char_cnn_preprocess(contents, word_maxlen=cfg.word_seq_maxlen, char_maxlen=cfg.char_seq_maxlen,
+                             keep=False):
+    word_seq = get_word_seq(contents, word_maxlen=word_maxlen, keep=keep)
+    char_seq = get_char_seq(contents, char_maxlen=char_maxlen, keep=keep)
+    return [word_seq, char_seq]
 
